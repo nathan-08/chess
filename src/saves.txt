@@ -1,0 +1,22 @@
+
+            // 0: red, 1: blue, 2: green
+            self.apply_forces_( 0.1, 0, 0);
+            self.apply_forces_(-0.17, 0, 1);
+            self.apply_forces_( 0.07, 1, 1);
+            self.apply_forces_( 0.2, 1, 2);
+            self.apply_forces_(-0.1, 2, 0);
+            self.apply_forces_(-0.17, 1, 0);
+
+            // 0: red, 1: blue, 2: green
+            self.apply_forces_( 0.08,  0, 0);
+            self.apply_forces_( 0.1,  1, 1);
+            self.apply_forces_(-0.1,  2, 2);
+
+            self.apply_forces_(-0.22, 0, 1);
+            self.apply_forces_( 0.15, 1, 0);
+
+            self.apply_forces_( 0.15, 0, 2);
+            self.apply_forces_(-0.1,  2, 0);
+
+            self.apply_forces_(-0.28, 1, 2);
+            self.apply_forces_(-0.1,  2, 1);
