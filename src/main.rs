@@ -4,7 +4,7 @@ use std::thread;
 
 fn main() {
     let mut native_options = eframe::NativeOptions::default();
-    native_options.initial_window_size = Some(egui::Vec2{x: 800.0, y: 800.0});
+    native_options.initial_window_size = Some(egui::Vec2{x: 1000.0, y: 800.0});
     native_options.resizable = false;
     eframe::run_native("Particle Simulation", native_options, Box::new(
             |cc| Box::new(MyEguiApp::new(cc))));
@@ -22,8 +22,35 @@ struct MyEguiApp {
     fc: u32,
     vel: f32,
     rng: rand::rngs::ThreadRng,
-    points_vec: Vec<Vec<(f32,f32,f32,f32)>>,
+    red: Vec<(f32,f32,f32,f32)>,
+    blue: Vec<(f32,f32,f32,f32)>,
+    green: Vec<(f32,f32,f32,f32)>,
+    yellow: Vec<(f32,f32,f32,f32)>,
     paused: bool,
+
+    force_locality: i32,
+    force_multiplier: f32,
+
+    yty: f32,
+    btb: f32,
+    gtg: f32,
+    rtr: f32,
+
+    rtb: f32,
+    gtb: f32,
+    ytb: f32,
+
+    rtg: f32,
+    ytg: f32,
+    btg: f32,
+
+    ytr: f32,
+    gtr: f32,
+    btr: f32,
+
+    rty: f32,
+    gty: f32,
+    bty: f32,
 }
 
 impl Default for MyEguiApp {
@@ -33,15 +60,42 @@ impl Default for MyEguiApp {
             age: 42,
             x: 200.0,
             y: 100.0,
-            x_min: 125.0,
+            x_min: 205.0,
             y_min: 5.0,
-            x_max: 795.0,
+            x_max: 995.0,
             y_max: 795.0,
             fc: 0,
             vel: 5.0,
             rng: rand::thread_rng(),
-            points_vec: vec![vec![(0.0, 0.0, 0.0, 0.0);200];4],
-            paused: true
+            red: vec![(0.0,0.0,0.0,0.0);200],
+            blue: vec![(0.0,0.0,0.0,0.0);200],
+            green: vec![(0.0,0.0,0.0,0.0);200],
+            yellow: vec![(0.0,0.0,0.0,0.0);200],
+            paused: true,
+
+            force_locality: 100,
+            force_multiplier: 0.5,
+
+            yty: 0.0,
+            btb: 0.0,
+            rtr: 0.0,
+            gtg: 0.0,
+
+            rtb: 0.0,
+            ytb: 0.0,
+            gtb: 0.0,
+
+            rtg: 0.0,
+            ytg: 0.0,
+            btg: 0.0,
+
+            ytr: 0.0,
+            gtr: 0.0,
+            btr: 0.0,
+
+            rty: 0.0,
+            gty: 0.0,
+            bty: 0.0,
         }
     }
 }
@@ -54,13 +108,13 @@ impl MyEguiApp {
         let y_min = app.y_min as u32;
         let y_max = app.y_max as u32;
         MyEguiApp::distribute_points_(&mut app.rng,
-                                      &mut app.points_vec[0],x_min,x_max, y_min, y_max);
+                                      &mut app.red,x_min,x_max, y_min, y_max);
         MyEguiApp::distribute_points_(&mut app.rng,
-                                      &mut app.points_vec[1],x_min,x_max, y_min, y_max);
+                                      &mut app.blue,x_min,x_max, y_min, y_max);
         MyEguiApp::distribute_points_(&mut app.rng,
-                                      &mut app.points_vec[2],x_min,x_max, y_min, y_max);
+                                      &mut app.green,x_min,x_max, y_min, y_max);
         MyEguiApp::distribute_points_(&mut app.rng,
-                                      &mut app.points_vec[3],x_min,x_max, y_min, y_max);
+                                      &mut app.yellow,x_min,x_max, y_min, y_max);
         app
     }
     fn rand_position(&mut self) -> (f32, f32) {
@@ -80,54 +134,86 @@ impl MyEguiApp {
         }
     }
 
-    fn apply_forces_(&mut self, g: f32, pid1: usize, pid2: usize) {
-            for i in 0..self.points_vec[pid1].len() {
-                let mut fx = 0.0;
-                let mut fy = 0.0;
-                for j in 0..self.points_vec[pid2].len() {
-                    let dx = self.points_vec[pid1][i].0 - self.points_vec[pid2][j].0;
-                    let dy = self.points_vec[pid1][i].1 - self.points_vec[pid2][j].1;
-                    let d = (dx*dx + dy*dy).sqrt();
-                    if d > 0.0 && d < 180.0 {
-                        let f = g * 1.0 / d;
-                        fx += f * dx;
-                        fy += f * dy;
-                    }
+    fn apply_forces_to_self(g: f32, v1: &mut Vec<(f32,f32,f32,f32)>,
+                      x_min: f32, x_max: f32, y_min: f32, y_max: f32,
+                      force_locality: i32, force_multiplier: f32) {
+        for i in 0..v1.len() {
+            let mut fx = 0.0;
+            let mut fy = 0.0;
+            for j in 0..v1.len() {
+                let dx = v1[i].0 - v1[j].0;
+                let dy = v1[i].1 - v1[j].1;
+                let d = (dx*dx + dy*dy).sqrt();
+                if d > 0.0 && d < force_locality as f32 {
+                    let f = g * 1.0 / d;
+                    fx += f * dx;
+                    fy += f * dy;
                 }
-                self.points_vec[pid1][i].2 = (self.points_vec[pid1][i].2 + fx)*0.75;
-                self.points_vec[pid1][i].3 = (self.points_vec[pid1][i].3 + fy)*0.75;
-
-
-                //if self.points_vec[pid1][i].0 <= self.x_min
-                    //|| self.points_vec[pid1][i].0 >= self.x_max {
-                    //self.points_vec[pid1][i].2 *= -1.0;
-                //}
-                //if self.points_vec[pid1][i].1 <= self.y_min
-                    //|| self.points_vec[pid1][i].1 >= self.y_max {
-                    //self.points_vec[pid1][i].3 *= -1.0;
-                //}
-
-                if self.points_vec[pid1][i].0 < self.x_min {
-                    self.points_vec[pid1][i].0 = self.x_min;
-                    //self.points_vec[pid1][i].2 *= -1.0;
-                }
-                if self.points_vec[pid1][i].0 > self.x_max {
-                    self.points_vec[pid1][i].0 = self.x_max;
-                    //self.points_vec[pid1][i].2 *= -1.0;
-                }
-                if self.points_vec[pid1][i].1 < self.y_min {
-                    self.points_vec[pid1][i].1 = self.y_min;
-                    //self.points_vec[pid1][i].3 *= -1.0;
-                }
-                if self.points_vec[pid1][i].1 > self.y_max {
-                    self.points_vec[pid1][i].1 = self.y_max;
-                    //self.points_vec[pid1][i].3 *= -1.0;
-                }
-
-                self.points_vec[pid1][i].0 += self.points_vec[pid1][i].2;
-                self.points_vec[pid1][i].1 += self.points_vec[pid1][i].3;
-
             }
+            v1[i].2 = (v1[i].2 + fx)*force_multiplier;
+            v1[i].3 = (v1[i].3 + fy)*force_multiplier;
+
+            if v1[i].0 < x_min {
+                v1[i].0 = x_min;
+                v1[i].2 *= -1.0;
+            }
+            if v1[i].0 > x_max {
+                v1[i].0 = x_max;
+                v1[i].2 *= -1.0;
+            }
+            if v1[i].1 < y_min {
+                v1[i].1 = y_min;
+                v1[i].3 *= -1.0;
+            }
+            if v1[i].1 > y_max {
+                v1[i].1 = y_max;
+                v1[i].3 *= -1.0;
+            }
+            v1[i].0 += v1[i].2;
+            v1[i].1 += v1[i].3;
+        }
+    }
+    fn apply_forces_2(g: f32, v1: &mut Vec<(f32,f32,f32,f32)>, v2: &Vec<(f32,f32,f32,f32)>,
+                      x_min: f32, x_max: f32, y_min: f32, y_max: f32,
+                      force_locality: i32, force_multiplier: f32
+                      ) 
+    {
+        for i in 0..v1.len() {
+            let mut fx = 0.0;
+            let mut fy = 0.0;
+            for j in 0..v2.len() {
+                let dx = v1[i].0 - v2[j].0;
+                let dy = v1[i].1 - v2[j].1;
+                let d = (dx*dx + dy*dy).sqrt();
+                if d > 0.0 && d < force_locality as f32 {
+                    let f = g * 1.0 / d;
+                    fx += f * dx;
+                    fy += f * dy;
+                }
+            }
+            v1[i].2 = (v1[i].2 + fx)*force_multiplier;
+            v1[i].3 = (v1[i].3 + fy)*force_multiplier;
+
+            if v1[i].0 < x_min {
+                v1[i].0 = x_min;
+                v1[i].2 *= -1.0;
+            }
+            if v1[i].0 > x_max {
+                v1[i].0 = x_max;
+                v1[i].2 *= -1.0;
+            }
+            if v1[i].1 < y_min {
+                v1[i].1 = y_min;
+                v1[i].3 *= -1.0;
+            }
+            if v1[i].1 > y_max {
+                v1[i].1 = y_max;
+                v1[i].3 *= -1.0;
+            }
+            v1[i].0 += v1[i].2;
+            v1[i].1 += v1[i].3;
+        }
+
     }
 }
 
@@ -135,8 +221,53 @@ impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.fc += 1;
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Debug Info");
-            ui.label(format!("=D"));
+
+            ui.label(format!("yellow <-> yellow"));
+            ui.add(egui::Slider::new(&mut self.yty, -1.0..=1.0));
+
+            ui.label(format!("red <-> red"));
+            ui.add(egui::Slider::new(&mut self.rtr, -1.0..=1.0));
+
+            ui.label(format!("green <-> green"));
+            ui.add(egui::Slider::new(&mut self.gtg, -1.0..=1.0));
+
+            ui.label(format!("blue <-> blue"));
+            ui.add(egui::Slider::new(&mut self.btb, -1.0..=1.0));
+
+            ui.label(format!("red -> blue"));
+            ui.add(egui::Slider::new(&mut self.rtb, -1.0..=1.0));
+            ui.label(format!("green -> blue"));
+            ui.add(egui::Slider::new(&mut self.gtb, -1.0..=1.0));
+            ui.label(format!("yellow -> blue"));
+            ui.add(egui::Slider::new(&mut self.ytb, -1.0..=1.0));
+
+            ui.label(format!("blue -> red"));
+            ui.add(egui::Slider::new(&mut self.btr, -1.0..=1.0));
+            ui.label(format!("green -> red"));
+            ui.add(egui::Slider::new(&mut self.gtr, -1.0..=1.0));
+            ui.label(format!("yellow -> red"));
+            ui.add(egui::Slider::new(&mut self.ytr, -1.0..=1.0));
+
+            ui.label(format!("blue -> yellow"));
+            ui.add(egui::Slider::new(&mut self.bty, -1.0..=1.0));
+            ui.label(format!("green -> yellow"));
+            ui.add(egui::Slider::new(&mut self.gty, -1.0..=1.0));
+            ui.label(format!("red -> yellow"));
+            ui.add(egui::Slider::new(&mut self.rty, -1.0..=1.0));
+
+            ui.label(format!("blue -> green"));
+            ui.add(egui::Slider::new(&mut self.btg, -1.0..=1.0));
+            ui.label(format!("yellow -> green"));
+            ui.add(egui::Slider::new(&mut self.ytg, -1.0..=1.0));
+            ui.label(format!("red -> green"));
+            ui.add(egui::Slider::new(&mut self.rtg, -1.0..=1.0));
+
+            ui.label(format!("force locality"));
+            ui.add(egui::Slider::new(&mut self.force_locality, 0..=500));
+
+            ui.label(format!("force multiplier"));
+            ui.add(egui::Slider::new(&mut self.force_multiplier, 0.0..=1.0));
+
             //ui.label(format!("fc: {}", self.fc));
 
             //if ctx.input().key_down(egui::Key::ArrowRight) {
@@ -156,47 +287,162 @@ impl eframe::App for MyEguiApp {
                 let x_max = self.x_max as u32;
                 let y_min = self.y_min as u32;
                 let y_max = self.y_max as u32;
-                MyEguiApp::distribute_points_(&mut self.rng,&mut self.points_vec[0],
+                MyEguiApp::distribute_points_(&mut self.rng,&mut self.red,
                                               x_min, x_max, y_min, y_max);
-                MyEguiApp::distribute_points_(&mut self.rng,&mut self.points_vec[1],
+                MyEguiApp::distribute_points_(&mut self.rng,&mut self.blue,
                                               x_min, x_max, y_min, y_max);
-                MyEguiApp::distribute_points_(&mut self.rng,&mut self.points_vec[2],
+                MyEguiApp::distribute_points_(&mut self.rng,&mut self.green,
+                                              x_min, x_max, y_min, y_max);
+                MyEguiApp::distribute_points_(&mut self.rng,&mut self.yellow,
                                               x_min, x_max, y_min, y_max);
             }
             if ctx.input().key_pressed(egui::Key::P) {
                 self.paused = !self.paused;
             }
             if self.paused { return; }
-            // 0: red, 1: blue, 2: green 3: yellow
-            self.apply_forces_(-0.08,  0, 0);
-            self.apply_forces_( 0.1,  1, 1);
-            self.apply_forces_(-0.1,  2, 2);
-            self.apply_forces_( 0.1,  3, 3);
-
-            self.apply_forces_(-0.22, 0, 1);
-            self.apply_forces_( 0.15, 1, 0);
-
-            self.apply_forces_( 0.15, 0, 2);
-            self.apply_forces_( 0.1,  2, 0);
-
-            self.apply_forces_(-0.28, 1, 2);
-            self.apply_forces_(-0.1,  2, 1);
-
-            self.apply_forces_( 0.08,  2, 3);
-            self.apply_forces_( 0.12,  0, 3);
-            self.apply_forces_(-0.08,  3, 0);
-            self.apply_forces_( 0.08,  3, 1);
-            self.apply_forces_( 0.11,  3, 2);
-            self.apply_forces_(-0.18,  1, 3);
+            thread::scope(|scope| {
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_to_self(self.rtr,
+                        &mut self.red,
+                        self.x_min, self.x_max,
+                        self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier);
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_to_self(self.btb,
+                        &mut self.blue,
+                        self.x_min, self.x_max,
+                        self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier);
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_to_self(self.gtg,
+                        &mut self.green,
+                        self.x_min, self.x_max,
+                        self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier);
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_to_self(self.yty,
+                        &mut self.yellow,
+                        self.x_min, self.x_max,
+                        self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier);
+                });
+            });
+            thread::scope(|scope| {
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.rtb,
+                                              &mut self.red,
+                                              &self.blue,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.gtb,
+                                              &mut self.green,
+                                              &self.blue,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.ytb,
+                                              &mut self.yellow,
+                                              &self.blue,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+            });
+            thread::scope(|scope| {
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.rtg,
+                                              &mut self.red,
+                                              &self.green,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.btg,
+                                              &mut self.blue,
+                                              &self.green,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.ytg,
+                                              &mut self.yellow,
+                                              &self.green,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+            });
+            thread::scope(|scope| {
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.gty,
+                                              &mut self.green,
+                                              &self.yellow,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.rty,
+                                              &mut self.red,
+                                              &self.yellow,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.bty,
+                                              &mut self.blue,
+                                              &self.yellow,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+            });
+            thread::scope(|scope| {
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.btr,
+                                              &mut self.blue,
+                                              &self.red,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.gtr,
+                                              &mut self.green,
+                                              &self.red,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+                scope.spawn(|| {
+                    MyEguiApp::apply_forces_2(self.ytr,
+                                              &mut self.yellow,
+                                              &self.red,
+                                              self.x_min, self.x_max,
+                                              self.y_min, self.y_max,
+                        self.force_locality, self.force_multiplier)
+                });
+            });
 
             let canvas = egui::Frame::canvas(&ctx.style())
                 .fill(egui::Color32::BLACK)
                 .paint(egui::Rect{
-                    min: egui::Pos2{x: 120.0, y: 0.0},
-                    max: egui::Pos2{x: 800.0, y: 800.0} });
+                    min: egui::Pos2{x: 200.0, y: 0.0},
+                    max: egui::Pos2{x: 1000.0, y: 800.0} });
 
             ui.painter().add(canvas);
-            for point in &self.points_vec[0] {
+            for point in &self.red {
                 let circle = egui::epaint::CircleShape{
                     center: egui::Pos2{ x: point.0, y: point.1 },
                     radius: 1.0,
@@ -205,7 +451,7 @@ impl eframe::App for MyEguiApp {
                 };
                 ui.painter().add(circle);
             }
-            for point in &self.points_vec[1] {
+            for point in &self.blue {
                 let circle = egui::epaint::CircleShape{
                     center: egui::Pos2{ x: point.0, y: point.1 },
                     radius: 1.0,
@@ -214,7 +460,7 @@ impl eframe::App for MyEguiApp {
                 };
                 ui.painter().add(circle);
             }
-            for point in &self.points_vec[2] {
+            for point in &self.green {
                 let circle = egui::epaint::CircleShape{
                     center: egui::Pos2{ x: point.0, y: point.1 },
                     radius: 1.0,
@@ -223,7 +469,7 @@ impl eframe::App for MyEguiApp {
                 };
                 ui.painter().add(circle);
             }
-            for point in &self.points_vec[3] {
+            for point in &self.yellow {
                 let circle = egui::epaint::CircleShape{
                     center: egui::Pos2{ x: point.0, y: point.1 },
                     radius: 1.0,
