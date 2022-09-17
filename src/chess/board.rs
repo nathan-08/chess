@@ -10,72 +10,10 @@ pub struct Board {
     pub selected_tile: (i32,i32),
 }
 impl Board {
-    fn make_image_map() -> HashMap<(Kind, Color), RetainedImage> {
-        let white_pawn = get_image(Path::new("./src/images/pawn_white.png")).unwrap();
-        let black_pawn = get_image(Path::new("./src/images/pawn_black.png")).unwrap();
-        let white_rook = get_image(Path::new("./src/images/rook_white.png")).unwrap();
-        let black_rook = get_image(Path::new("./src/images/rook_black.png")).unwrap();
-        let white_knight = get_image(Path::new("./src/images/knight_white.png")).unwrap();
-        let black_knight = get_image(Path::new("./src/images/knight_black.png")).unwrap();
-        let white_bishop = get_image(Path::new("./src/images/bishop_white.png")).unwrap();
-        let black_bishop = get_image(Path::new("./src/images/bishop_black.png")).unwrap();
-        let white_queen = get_image(Path::new("./src/images/queen_white.png")).unwrap();
-        let black_queen = get_image(Path::new("./src/images/queen_black.png")).unwrap();
-        let white_king = get_image(Path::new("./src/images/king_white.png")).unwrap();
-        let black_king = get_image(Path::new("./src/images/king_black.png")).unwrap();
-        HashMap::from([
-          ((Kind::PAWN, Color::WHITE),RetainedImage::from_color_image("w_pawn", white_pawn)),
-          ((Kind::PAWN, Color::BLACK),RetainedImage::from_color_image("b_pawn", black_pawn)),
-          ((Kind::ROOK, Color::WHITE),RetainedImage::from_color_image("w_rook", white_rook)),
-          ((Kind::ROOK, Color::BLACK),RetainedImage::from_color_image("b_rook", black_rook)),
-          ((Kind::KNIGHT, Color::WHITE),RetainedImage::from_color_image("w_knight", white_knight)),
-          ((Kind::KNIGHT, Color::BLACK),RetainedImage::from_color_image("b_knight", black_knight)),
-          ((Kind::BISHOP, Color::WHITE),RetainedImage::from_color_image("w_bishop", white_bishop)),
-          ((Kind::BISHOP, Color::BLACK),RetainedImage::from_color_image("b_bishop", black_bishop)),
-          ((Kind::QUEEN, Color::WHITE),RetainedImage::from_color_image("w_queen", white_queen)),
-          ((Kind::QUEEN, Color::BLACK),RetainedImage::from_color_image("b_queen", black_queen)),
-          ((Kind::KING, Color::WHITE),RetainedImage::from_color_image("w_king", white_king)),
-          ((Kind::KING, Color::BLACK),RetainedImage::from_color_image("b_king", black_king)),
-        ])
-    }
     pub fn default() -> Self {
-        let mut state:[[Option<ChessPiece>; 8]; 8] = Default::default();
-        state[0][0] = Some(ChessPiece::new(Color::WHITE, Kind::ROOK));
-        state[0][1] = Some(ChessPiece::new(Color::WHITE, Kind::KNIGHT));
-        state[0][2] = Some(ChessPiece::new(Color::WHITE, Kind::BISHOP));
-        state[0][3] = Some(ChessPiece::new(Color::WHITE, Kind::QUEEN));
-        state[0][4] = Some(ChessPiece::new(Color::WHITE, Kind::KING));
-        state[0][5] = Some(ChessPiece::new(Color::WHITE, Kind::BISHOP));
-        state[0][6] = Some(ChessPiece::new(Color::WHITE, Kind::KNIGHT));
-        state[0][7] = Some(ChessPiece::new(Color::WHITE, Kind::ROOK));
-        state[1][0] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
-        state[1][1] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
-        state[1][2] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
-        state[1][3] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
-        state[1][4] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
-        state[1][5] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
-        state[1][6] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
-        state[1][7] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
-
-        state[7][0] = Some(ChessPiece::new(Color::BLACK, Kind::ROOK));
-        state[7][1] = Some(ChessPiece::new(Color::BLACK, Kind::KNIGHT));
-        state[7][2] = Some(ChessPiece::new(Color::BLACK, Kind::BISHOP));
-        state[7][3] = Some(ChessPiece::new(Color::BLACK, Kind::QUEEN));
-        state[7][4] = Some(ChessPiece::new(Color::BLACK, Kind::KING));
-        state[7][5] = Some(ChessPiece::new(Color::BLACK, Kind::BISHOP));
-        state[7][6] = Some(ChessPiece::new(Color::BLACK, Kind::KNIGHT));
-        state[7][7] = Some(ChessPiece::new(Color::BLACK, Kind::ROOK));
-        state[6][0] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
-        state[6][1] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
-        state[6][2] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
-        state[6][3] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
-        state[6][4] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
-        state[6][5] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
-        state[6][6] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
-        state[6][7] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
         Self {
-            state,
-            image_map: Board::make_image_map(),
+            state: get_initial_state(),
+            image_map: make_image_map(),
             selected_tile: (-1,-1),
         }
     }
@@ -280,4 +218,69 @@ fn enemy_color(color:&Color) -> Color {
         Color::BLACK => Color::WHITE,
         Color::WHITE => Color::BLACK,
     }
+}
+fn make_image_map() -> HashMap<(Kind, Color), RetainedImage> {
+    let white_pawn = get_image(Path::new("./src/images/pawn_white.png")).unwrap();
+    let black_pawn = get_image(Path::new("./src/images/pawn_black.png")).unwrap();
+    let white_rook = get_image(Path::new("./src/images/rook_white.png")).unwrap();
+    let black_rook = get_image(Path::new("./src/images/rook_black.png")).unwrap();
+    let white_knight = get_image(Path::new("./src/images/knight_white.png")).unwrap();
+    let black_knight = get_image(Path::new("./src/images/knight_black.png")).unwrap();
+    let white_bishop = get_image(Path::new("./src/images/bishop_white.png")).unwrap();
+    let black_bishop = get_image(Path::new("./src/images/bishop_black.png")).unwrap();
+    let white_queen = get_image(Path::new("./src/images/queen_white.png")).unwrap();
+    let black_queen = get_image(Path::new("./src/images/queen_black.png")).unwrap();
+    let white_king = get_image(Path::new("./src/images/king_white.png")).unwrap();
+    let black_king = get_image(Path::new("./src/images/king_black.png")).unwrap();
+    HashMap::from([
+      ((Kind::PAWN, Color::WHITE),RetainedImage::from_color_image("w_pawn", white_pawn)),
+      ((Kind::PAWN, Color::BLACK),RetainedImage::from_color_image("b_pawn", black_pawn)),
+      ((Kind::ROOK, Color::WHITE),RetainedImage::from_color_image("w_rook", white_rook)),
+      ((Kind::ROOK, Color::BLACK),RetainedImage::from_color_image("b_rook", black_rook)),
+      ((Kind::KNIGHT, Color::WHITE),RetainedImage::from_color_image("w_knight", white_knight)),
+      ((Kind::KNIGHT, Color::BLACK),RetainedImage::from_color_image("b_knight", black_knight)),
+      ((Kind::BISHOP, Color::WHITE),RetainedImage::from_color_image("w_bishop", white_bishop)),
+      ((Kind::BISHOP, Color::BLACK),RetainedImage::from_color_image("b_bishop", black_bishop)),
+      ((Kind::QUEEN, Color::WHITE),RetainedImage::from_color_image("w_queen", white_queen)),
+      ((Kind::QUEEN, Color::BLACK),RetainedImage::from_color_image("b_queen", black_queen)),
+      ((Kind::KING, Color::WHITE),RetainedImage::from_color_image("w_king", white_king)),
+      ((Kind::KING, Color::BLACK),RetainedImage::from_color_image("b_king", black_king)),
+    ])
+}
+fn get_initial_state() -> [[Option<ChessPiece>; 8]; 8] {
+    let mut state:[[Option<ChessPiece>; 8]; 8] = Default::default();
+    state[0][0] = Some(ChessPiece::new(Color::WHITE, Kind::ROOK));
+    state[0][1] = Some(ChessPiece::new(Color::WHITE, Kind::KNIGHT));
+    state[0][2] = Some(ChessPiece::new(Color::WHITE, Kind::BISHOP));
+    state[0][3] = Some(ChessPiece::new(Color::WHITE, Kind::QUEEN));
+    state[0][4] = Some(ChessPiece::new(Color::WHITE, Kind::KING));
+    state[0][5] = Some(ChessPiece::new(Color::WHITE, Kind::BISHOP));
+    state[0][6] = Some(ChessPiece::new(Color::WHITE, Kind::KNIGHT));
+    state[0][7] = Some(ChessPiece::new(Color::WHITE, Kind::ROOK));
+    state[1][0] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
+    state[1][1] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
+    state[1][2] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
+    state[1][3] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
+    state[1][4] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
+    state[1][5] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
+    state[1][6] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
+    state[1][7] = Some(ChessPiece::new(Color::WHITE, Kind::PAWN));
+
+    state[7][0] = Some(ChessPiece::new(Color::BLACK, Kind::ROOK));
+    state[7][1] = Some(ChessPiece::new(Color::BLACK, Kind::KNIGHT));
+    state[7][2] = Some(ChessPiece::new(Color::BLACK, Kind::BISHOP));
+    state[7][3] = Some(ChessPiece::new(Color::BLACK, Kind::QUEEN));
+    state[7][4] = Some(ChessPiece::new(Color::BLACK, Kind::KING));
+    state[7][5] = Some(ChessPiece::new(Color::BLACK, Kind::BISHOP));
+    state[7][6] = Some(ChessPiece::new(Color::BLACK, Kind::KNIGHT));
+    state[7][7] = Some(ChessPiece::new(Color::BLACK, Kind::ROOK));
+    state[6][0] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
+    state[6][1] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
+    state[6][2] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
+    state[6][3] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
+    state[6][4] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
+    state[6][5] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
+    state[6][6] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
+    state[6][7] = Some(ChessPiece::new(Color::BLACK, Kind::PAWN));
+    state
 }
