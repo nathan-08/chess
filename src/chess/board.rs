@@ -140,51 +140,91 @@ impl Board {
                     add_if_on_board(x-2,y-1,&mut moves); }
             },
             Some(ChessPiece{kind:Kind::ROOK,color}) => {
-                for xi in (0..x).rev() {
-                    if !self.tile_occupied(xi,y) {
-                        moves.push((xi,y));
-                    }
-                    else if self.tile_occupied_by_enemy(xi,y,color) {
-                        moves.push((xi,y));
-                        break;
-                    }
-                    else { break; }
-                }
-                for xi in x+1..=7 {
-                    if !self.tile_occupied(xi,y) {
-                        moves.push((xi,y));
-                    }
-                    else if self.tile_occupied_by_enemy(xi,y,color) {
-                        moves.push((xi,y));
-                        break;
-                    }
-                    else { break; }
-                }
-                for yi in (0..y).rev() {
-                    if !self.tile_occupied(x,yi) {
-                        moves.push((x,yi));
-                    }
-                    else if self.tile_occupied_by_enemy(x,yi,color) {
-                        moves.push((x,yi));
-                        break;
-                    }
-                    else { break; }
-                }
-                for yi in y+1..=7 {
-                    if !self.tile_occupied(x,yi) {
-                        moves.push((x,yi));
-                    }
-                    else if self.tile_occupied_by_enemy(x,yi,color) {
-                        moves.push((x,yi));
-                        break;
-                    }
-                    else { break; }
-                }
+                self.evaluate_ray(x,y, 1, 0,&color,&mut moves);
+                self.evaluate_ray(x,y,-1, 0,&color,&mut moves);
+                self.evaluate_ray(x,y, 0, 1,&color,&mut moves);
+                self.evaluate_ray(x,y, 0,-1,&color,&mut moves);
             },
-            Some(_) => (),
+            Some(ChessPiece{kind:Kind::BISHOP,color}) => {
+                self.evaluate_ray(x,y, 1, 1,&color,&mut moves);
+                self.evaluate_ray(x,y, 1,-1,&color,&mut moves);
+                self.evaluate_ray(x,y,-1, 1,&color,&mut moves);
+                self.evaluate_ray(x,y,-1,-1,&color,&mut moves);
+            },
+            Some(ChessPiece{kind:Kind::QUEEN,color}) => {
+                self.evaluate_ray(x,y, 1, 0,&color,&mut moves);
+                self.evaluate_ray(x,y,-1, 0,&color,&mut moves);
+                self.evaluate_ray(x,y, 0, 1,&color,&mut moves);
+                self.evaluate_ray(x,y, 0,-1,&color,&mut moves);
+                self.evaluate_ray(x,y, 1, 1,&color,&mut moves);
+                self.evaluate_ray(x,y, 1,-1,&color,&mut moves);
+                self.evaluate_ray(x,y,-1, 1,&color,&mut moves);
+                self.evaluate_ray(x,y,-1,-1,&color,&mut moves);
+            },
+            Some(ChessPiece{kind:Kind::KING,color}) => {
+                self.evaluate_king_move(x+1,y+1,color,&mut moves);
+                self.evaluate_king_move(x+1,y  ,color,&mut moves);
+                self.evaluate_king_move(x+1,y-1,color,&mut moves);
+                self.evaluate_king_move(x-1,y+1,color,&mut moves);
+                self.evaluate_king_move(x-1,y  ,color,&mut moves);
+                self.evaluate_king_move(x-1,y-1,color,&mut moves);
+                self.evaluate_king_move(x  ,y+1,color,&mut moves);
+                self.evaluate_king_move(x  ,y-1,color,&mut moves);
+            }
             None => (),
         };
         moves
+    }
+    fn evaluate_king_move(&self,x:i32,y:i32,color:&Color,moves:&mut Vec<(i32,i32)>) {
+        if tile_on_board(x,y) && !self.tile_under_attack(x,y,color)
+                && !self.tile_occupied_by_ally(x,y,color) {
+            moves.push((x,y));
+        }
+    }
+    fn tile_under_attack(&self,x:i32,y:i32,color:&Color) -> bool {
+        for xi in 0..7 {
+            for yi in 0..7 {
+                if self.tile_occupied_by_enemy(xi,yi,color) {
+                    match self.get_piece(xi,yi) {
+                        Some(ChessPiece{kind:Kind::PAWN,color:pawn_color}) => {
+                            let dir = y_direction(pawn_color);
+                            if y == yi + dir && (x == xi + 1 || x == xi - 1) {
+                                return true;
+                            }
+                        },
+                        Some(ChessPiece{kind:Kind::KING,..}) => {
+                            if x == xi && y == yi { continue; }
+                            if x == xi + 1 || x == xi || x == xi - 1 {
+                                if y == yi || y == yi + 1 || y == yi -1 {
+                                    return true;
+                                }
+                            }
+                        }
+                        _ => {
+                            if self.get_moves(xi,yi).contains(&(x,y)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    fn evaluate_ray(&self,x:i32,y:i32,dx:i32,dy:i32,color:&Color,moves:&mut Vec<(i32,i32)>) {
+        for i in 1..=7 {
+            let xi = x+i*dx;
+            let yi = y+i*dy;
+            if !tile_on_board(xi,yi) { break; }
+            if !self.tile_occupied(xi,yi) {
+                moves.push((xi,yi));
+            }
+            else if self.tile_occupied_by_enemy(xi,yi,color) {
+                moves.push((xi,yi));
+                break;
+            }
+            else { break; }
+        }
     }
     pub fn tile_occupied(&self, x: i32, y: i32) -> bool {
         match self.get_piece(x,y) {
@@ -193,12 +233,8 @@ impl Board {
         }
     }
     pub fn tile_occupied_by_enemy(&self,x:i32,y:i32,color:&Color) -> bool {
-        let enemy_color = match color {
-            Color::BLACK => Color::WHITE,
-            Color::WHITE => Color::BLACK,
-        };
         match self.get_piece(x,y) {
-            Some(ChessPiece{color,..}) => color == &enemy_color,
+            Some(ChessPiece{color:other_color,..}) => other_color == &enemy_color(color),
             None => false
         }
     }
@@ -232,7 +268,16 @@ fn pawn_has_moved(y:i32, color: &Color) -> bool {
     }
 }
 fn add_if_on_board(x:i32, y:i32, v: &mut Vec<(i32,i32)>) {
-    if x >= 0 && x <= 7 && y >= 0 && y <= 7 {
+    if tile_on_board(x,y) {
         v.push((x,y))
+    }
+}
+fn tile_on_board(x:i32,y:i32) -> bool {
+    0 <= x && x <= 7 && 0 <= y && y <= 7
+}
+fn enemy_color(color:&Color) -> Color {
+    match color {
+        Color::BLACK => Color::WHITE,
+        Color::WHITE => Color::BLACK,
     }
 }
