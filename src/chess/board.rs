@@ -90,10 +90,10 @@ impl Board {
                         moves.push((x,y + 2*dir));
                     }
                 }
-                if self.tile_occupied_by_enemy(x+1,y+dir,&color) {
+                if self.tile_occupied_by_enemy(x+1,y+dir,&color) || (self.tile_occupied_by_ally(x+1,y+dir,&color) && consider_allies) {
                     moves.push((x+1,y+dir));
                 }
-                if self.tile_occupied_by_enemy(x-1,y+dir,&color) {
+                if self.tile_occupied_by_enemy(x-1,y+dir,&color) || (self.tile_occupied_by_ally(x-1,y+dir,&color) && consider_allies){
                     moves.push((x-1,y+dir));
                 };
             },
