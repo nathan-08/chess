@@ -34,15 +34,20 @@ impl MyEguiApp {
 
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        _frame.set_window_title("White's turn");
+        _frame.set_window_title(self.board.turn_str());
         egui::CentralPanel::default().show(ctx, |ui| {
             if ctx.input().pointer.any_click() {
                 match ctx.input().pointer.interact_pos() {
                     Some(egui::Pos2{x, y}) => {
                         let xpos = (x / self.tile_width).floor() as i32;
                         let ypos = (y / self.tile_width).floor() as i32;
-                        self.board.try_move(xpos,ypos);
-                        self.board.selected_tile = (xpos,ypos);
+                        if self.board.try_move(xpos,ypos) {
+                            _frame.set_window_title(self.board.turn_str());
+                            self.board.selected_tile = (-1,-1);
+                        }
+                        else {
+                            self.board.selected_tile = (xpos,ypos);
+                        }
                     },
                     None => println!("no mouse pos"),
                 }
@@ -64,21 +69,6 @@ impl eframe::App for MyEguiApp {
                         egui::Rounding::none(),
                         color,
                     );
-                    //for (xpos, ypos) in &self.valid_positions {
-                        //ui.painter().rect_stroke(
-                            //egui::Rect{
-                                //min: egui::Pos2{x:*xpos as f32*self.tile_width,
-                                //y:*ypos as f32*self.tile_width},
-                                //max: egui::Pos2{x:(*xpos+1)as f32*self.tile_width,
-                                //y:(*ypos+1)as f32*self.tile_width},
-                            //},
-                            //egui::Rounding::same(2.0),
-                            //egui::Stroke{
-                                //width: 5.0,
-                                //color: egui::Color32::DARK_GRAY,
-                            //},
-                        //);
-                    //}
                 }
             }
             for i in 0..8 {
@@ -96,7 +86,8 @@ impl eframe::App for MyEguiApp {
                                     image.texture_id(ctx),
                                     egui::Vec2{x:image.width() as f32,y:image.height() as f32})
                             );
-                            if self.board.selected_tile == (j,i) {
+                            if self.board.selected_tile == (j,i)
+                                && self.board.turn_piece_selected() {
                                 draw_tile_outline(xpos,ypos,self.tile_width,ui);
                                 for (x,y) in self.board.get_moves(j,i) {
                                     draw_tile_outline(x as f32*self.tile_width,

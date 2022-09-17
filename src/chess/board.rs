@@ -8,6 +8,8 @@ pub struct Board {
     state: [[Option<ChessPiece>; 8]; 8],
     image_map: HashMap<(Kind, Color), RetainedImage>,
     pub selected_tile: (i32,i32),
+    player_turn: Color,
+    winner: Option<Color>,
 }
 impl Board {
     pub fn default() -> Self {
@@ -15,6 +17,22 @@ impl Board {
             state: get_initial_state(),
             image_map: make_image_map(),
             selected_tile: (-1,-1),
+            player_turn: Color::WHITE,
+            winner: None,
+        }
+    }
+    pub fn turn_str(&self) -> &str {
+        if let Some(color) = self.winner {
+            match color {
+                Color::WHITE => &"White wins!",
+                Color::BLACK => &"Black wins!",
+            }
+        }
+        else {
+            match self.player_turn {
+                Color::WHITE => &"White's turn",
+                Color::BLACK => &"Black's turn",
+            }
         }
     }
     pub fn get_image(&self, x:i32, y:i32) -> &RetainedImage {
@@ -32,12 +50,32 @@ impl Board {
             &self.state[y as usize][x as usize]
         }
     }
-    pub fn try_move(&mut self,x:i32,y:i32) {
+    pub fn try_move(&mut self,x:i32,y:i32) -> bool {
+        if let Some(_) = self.winner { return false; }
         let xcur = self.selected_tile.0;
         let ycur = self.selected_tile.1;
-        if self.get_moves(xcur,ycur).contains(&(x,y)) {
-            self.state[y as usize][x as usize] = self.state[ycur as usize][xcur as usize];
-            self.state[ycur as usize][xcur as usize] = None;
+        if let Some(ChessPiece{color,..}) = self.get_piece(xcur,ycur) {
+            if color == &self.player_turn {
+                if self.get_moves(xcur,ycur).contains(&(x,y)) {
+                    self.state[y as usize][x as usize] = self.state[ycur as usize][xcur as usize];
+                    self.state[ycur as usize][xcur as usize] = None;
+                    // check for win condition
+                    if self.checkmated(enemy_color(&self.player_turn)) {
+                        self.winner = Some(self.player_turn);
+                    }
+                    else {
+                        self.player_turn = enemy_color(&self.player_turn);
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    pub fn turn_piece_selected(&self) -> bool {
+        match self.get_piece(self.selected_tile.0,self.selected_tile.1) {
+            Some(ChessPiece{color,..}) => color == &self.player_turn,
+            None => false
         }
     }
     pub fn get_moves(&self, x:i32, y:i32) -> Vec<(i32,i32)> {
@@ -119,7 +157,37 @@ impl Board {
             moves.push((x,y));
         }
     }
+    fn checkmated(&self,color:Color) -> bool {
+        let (kingx,kingy) = self.find_piece(color,Kind::KING).expect("no king found");
+        self.tile_under_attack(kingx,kingy,&color) && self.get_moves(kingx,kingy).is_empty()
+    }
+    fn find_piece(&self,color:Color,kind:Kind) -> Option<(i32,i32)> {
+        for x in 0..=7 {
+            for y in 0..=7 {
+                if let Some(ChessPiece{color:c,kind:k}) = self.get_piece(x,y) {
+                    if c == &color && k == &kind {
+                        return Some((x,y));
+                    }
+                }
+            }
+        }
+        println!("no piece found");
+        None
+    }
+    fn switch_color(&self,x:i32,y:i32) {
+        let piece = &mut self.state[y as usize][x as usize].unwrap();
+        piece.color = enemy_color(&piece.color);
+    }
     fn tile_under_attack(&self,x:i32,y:i32,color:&Color) -> bool {
+        // TODO this is hacky :( .. find better solution
+        // tile_under_attack utilized get_moves, which excludes tiles occupied by
+        // an ally. however, for the case of tile_under_attack, we need to consider
+        // the case that the ally occupying that tile may be taken.
+        let mut switched = false;
+        if self.tile_occupied_by_enemy(x,y,color) {
+            switched = true;
+            self.switch_color(x,y);
+        }
         for xi in 0..7 {
             for yi in 0..7 {
                 if self.tile_occupied_by_enemy(xi,yi,color) {
@@ -127,6 +195,7 @@ impl Board {
                         Some(ChessPiece{kind:Kind::PAWN,color:pawn_color}) => {
                             let dir = y_direction(pawn_color);
                             if y == yi + dir && (x == xi + 1 || x == xi - 1) {
+                                if switched { self.switch_color(x,y); }
                                 return true;
                             }
                         },
@@ -134,12 +203,14 @@ impl Board {
                             if x == xi && y == yi { continue; }
                             if x == xi + 1 || x == xi || x == xi - 1 {
                                 if y == yi || y == yi + 1 || y == yi -1 {
+                                    if switched { self.switch_color(x,y); }
                                     return true;
                                 }
                             }
                         }
                         _ => {
                             if self.get_moves(xi,yi).contains(&(x,y)) {
+                                if switched { self.switch_color(x,y); }
                                 return true;
                             }
                         }
@@ -147,6 +218,7 @@ impl Board {
                 }
             }
         }
+        if switched { self.switch_color(x,y); }
         return false;
     }
     fn evaluate_ray(&self,x:i32,y:i32,dx:i32,dy:i32,color:&Color,moves:&mut Vec<(i32,i32)>) {
