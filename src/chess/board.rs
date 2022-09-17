@@ -56,7 +56,7 @@ impl Board {
         let ycur = self.selected_tile.1;
         if let Some(ChessPiece{color,..}) = self.get_piece(xcur,ycur) {
             if color == &self.player_turn {
-                if self.get_moves(xcur,ycur).contains(&(x,y)) {
+                if self.get_moves(xcur,ycur,false).contains(&(x,y)) {
                     self.state[y as usize][x as usize] = self.state[ycur as usize][xcur as usize];
                     self.state[ycur as usize][xcur as usize] = None;
                     // check for win condition
@@ -78,7 +78,7 @@ impl Board {
             None => false
         }
     }
-    pub fn get_moves(&self, x:i32, y:i32) -> Vec<(i32,i32)> {
+    pub fn get_moves(&self, x:i32, y:i32, consider_allies:bool) -> Vec<(i32,i32)> {
         let mut moves = Vec::<(i32,i32)>::new();
         match self.get_piece(x,y) {
             Some(ChessPiece{ kind:Kind::PAWN, color }) => {
@@ -98,68 +98,71 @@ impl Board {
                 };
             },
             Some(ChessPiece{kind:Kind::KNIGHT,color}) => {
-                if !self.tile_occupied_by_ally(x+1,y+2,color) {
+                if !self.tile_occupied_by_ally(x+1,y+2,color) || consider_allies {
                     add_if_on_board(x+1,y+2,&mut moves); }
-                if !self.tile_occupied_by_ally(x-1,y+2,color) {
+                if !self.tile_occupied_by_ally(x-1,y+2,color) || consider_allies {
                     add_if_on_board(x-1,y+2,&mut moves); }
-                if !self.tile_occupied_by_ally(x+1,y-2,color) {
+                if !self.tile_occupied_by_ally(x+1,y-2,color) || consider_allies {
                     add_if_on_board(x+1,y-2,&mut moves); }
-                if !self.tile_occupied_by_ally(x-1,y-2,color) {
+                if !self.tile_occupied_by_ally(x-1,y-2,color) || consider_allies {
                     add_if_on_board(x-1,y-2,&mut moves); }
-                if !self.tile_occupied_by_ally(x+2,y+1,color) {
+                if !self.tile_occupied_by_ally(x+2,y+1,color) || consider_allies {
                     add_if_on_board(x+2,y+1,&mut moves); }
-                if !self.tile_occupied_by_ally(x+2,y-1,color) {
+                if !self.tile_occupied_by_ally(x+2,y-1,color) || consider_allies {
                     add_if_on_board(x+2,y-1,&mut moves); }
-                if !self.tile_occupied_by_ally(x-2,y+1,color) {
+                if !self.tile_occupied_by_ally(x-2,y+1,color) || consider_allies {
                     add_if_on_board(x-2,y+1,&mut moves); }
-                if !self.tile_occupied_by_ally(x-2,y-1,color) {
+                if !self.tile_occupied_by_ally(x-2,y-1,color) || consider_allies {
                     add_if_on_board(x-2,y-1,&mut moves); }
             },
             Some(ChessPiece{kind:Kind::ROOK,color}) => {
-                self.evaluate_ray(x,y, 1, 0,&color,&mut moves);
-                self.evaluate_ray(x,y,-1, 0,&color,&mut moves);
-                self.evaluate_ray(x,y, 0, 1,&color,&mut moves);
-                self.evaluate_ray(x,y, 0,-1,&color,&mut moves);
+                self.evaluate_ray(x,y, 1, 0,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y,-1, 0,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y, 0, 1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y, 0,-1,&color,&mut moves,consider_allies);
             },
             Some(ChessPiece{kind:Kind::BISHOP,color}) => {
-                self.evaluate_ray(x,y, 1, 1,&color,&mut moves);
-                self.evaluate_ray(x,y, 1,-1,&color,&mut moves);
-                self.evaluate_ray(x,y,-1, 1,&color,&mut moves);
-                self.evaluate_ray(x,y,-1,-1,&color,&mut moves);
+                self.evaluate_ray(x,y, 1, 1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y, 1,-1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y,-1, 1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y,-1,-1,&color,&mut moves,consider_allies);
             },
             Some(ChessPiece{kind:Kind::QUEEN,color}) => {
-                self.evaluate_ray(x,y, 1, 0,&color,&mut moves);
-                self.evaluate_ray(x,y,-1, 0,&color,&mut moves);
-                self.evaluate_ray(x,y, 0, 1,&color,&mut moves);
-                self.evaluate_ray(x,y, 0,-1,&color,&mut moves);
-                self.evaluate_ray(x,y, 1, 1,&color,&mut moves);
-                self.evaluate_ray(x,y, 1,-1,&color,&mut moves);
-                self.evaluate_ray(x,y,-1, 1,&color,&mut moves);
-                self.evaluate_ray(x,y,-1,-1,&color,&mut moves);
+                self.evaluate_ray(x,y, 1, 0,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y,-1, 0,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y, 0, 1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y, 0,-1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y, 1, 1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y, 1,-1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y,-1, 1,&color,&mut moves,consider_allies);
+                self.evaluate_ray(x,y,-1,-1,&color,&mut moves,consider_allies);
             },
             Some(ChessPiece{kind:Kind::KING,color}) => {
-                self.evaluate_king_move(x+1,y+1,color,&mut moves);
-                self.evaluate_king_move(x+1,y  ,color,&mut moves);
-                self.evaluate_king_move(x+1,y-1,color,&mut moves);
-                self.evaluate_king_move(x-1,y+1,color,&mut moves);
-                self.evaluate_king_move(x-1,y  ,color,&mut moves);
-                self.evaluate_king_move(x-1,y-1,color,&mut moves);
-                self.evaluate_king_move(x  ,y+1,color,&mut moves);
-                self.evaluate_king_move(x  ,y-1,color,&mut moves);
+                self.evaluate_king_move(x+1,y+1,color,&mut moves,consider_allies);
+                self.evaluate_king_move(x+1,y  ,color,&mut moves,consider_allies);
+                self.evaluate_king_move(x+1,y-1,color,&mut moves,consider_allies);
+                self.evaluate_king_move(x-1,y+1,color,&mut moves,consider_allies);
+                self.evaluate_king_move(x-1,y  ,color,&mut moves,consider_allies);
+                self.evaluate_king_move(x-1,y-1,color,&mut moves,consider_allies);
+                self.evaluate_king_move(x  ,y+1,color,&mut moves,consider_allies);
+                self.evaluate_king_move(x  ,y-1,color,&mut moves,consider_allies);
             }
             None => (),
         };
         moves
     }
-    fn evaluate_king_move(&self,x:i32,y:i32,color:&Color,moves:&mut Vec<(i32,i32)>) {
+    fn evaluate_king_move(&self,x:i32,y:i32,color:&Color,moves:&mut Vec<(i32,i32)>,consider_allies:bool) {
         if tile_on_board(x,y) && !self.tile_under_attack(x,y,color)
-                && !self.tile_occupied_by_ally(x,y,color) {
+                && (!self.tile_occupied_by_ally(x,y,color) || consider_allies) {
             moves.push((x,y));
         }
     }
     fn checkmated(&self,color:Color) -> bool {
         let (kingx,kingy) = self.find_piece(color,Kind::KING).expect("no king found");
-        self.tile_under_attack(kingx,kingy,&color) && self.get_moves(kingx,kingy).is_empty()
+        let attackers = self.get_attackers(kingx,kingy,&color);
+        !attackers.is_empty()
+            && self.get_moves(kingx,kingy,false).is_empty()
+            && attackers.iter().all(|(x,y)| !self.tile_under_attack(*x,*y,&enemy_color(&color)))
     }
     fn find_piece(&self,color:Color,kind:Kind) -> Option<(i32,i32)> {
         for x in 0..=7 {
@@ -171,57 +174,43 @@ impl Board {
                 }
             }
         }
-        println!("no piece found");
         None
     }
-    fn switch_color(&self,x:i32,y:i32) {
-        let piece = &mut self.state[y as usize][x as usize].unwrap();
-        piece.color = enemy_color(&piece.color);
-    }
-    fn tile_under_attack(&self,x:i32,y:i32,color:&Color) -> bool {
-        // TODO this is hacky :( .. find better solution
-        // tile_under_attack utilized get_moves, which excludes tiles occupied by
-        // an ally. however, for the case of tile_under_attack, we need to consider
-        // the case that the ally occupying that tile may be taken.
-        let mut switched = false;
-        if self.tile_occupied_by_enemy(x,y,color) {
-            switched = true;
-            self.switch_color(x,y);
-        }
-        for xi in 0..7 {
-            for yi in 0..7 {
+    fn get_attackers(&self,x:i32,y:i32,color:&Color) -> Vec<(i32,i32)> {
+        let mut attackers = Vec::<(i32,i32)>::new();
+        for xi in 0..=7 {
+            for yi in 0..=7 {
                 if self.tile_occupied_by_enemy(xi,yi,color) {
                     match self.get_piece(xi,yi) {
                         Some(ChessPiece{kind:Kind::PAWN,color:pawn_color}) => {
                             let dir = y_direction(pawn_color);
                             if y == yi + dir && (x == xi + 1 || x == xi - 1) {
-                                if switched { self.switch_color(x,y); }
-                                return true;
+                                attackers.push((xi,yi));
                             }
                         },
                         Some(ChessPiece{kind:Kind::KING,..}) => {
                             if x == xi && y == yi { continue; }
                             if x == xi + 1 || x == xi || x == xi - 1 {
                                 if y == yi || y == yi + 1 || y == yi -1 {
-                                    if switched { self.switch_color(x,y); }
-                                    return true;
+                                    attackers.push((xi,yi));
                                 }
                             }
-                        }
+                        },
                         _ => {
-                            if self.get_moves(xi,yi).contains(&(x,y)) {
-                                if switched { self.switch_color(x,y); }
-                                return true;
+                            if self.get_moves(xi,yi,true).contains(&(x,y)) {
+                                attackers.push((xi,yi));
                             }
                         }
                     }
                 }
             }
         }
-        if switched { self.switch_color(x,y); }
-        return false;
+        attackers
     }
-    fn evaluate_ray(&self,x:i32,y:i32,dx:i32,dy:i32,color:&Color,moves:&mut Vec<(i32,i32)>) {
+    fn tile_under_attack(&self,x:i32,y:i32,color:&Color) -> bool {
+        !self.get_attackers(x,y,color).is_empty()
+    }
+    fn evaluate_ray(&self,x:i32,y:i32,dx:i32,dy:i32,color:&Color,moves:&mut Vec<(i32,i32)>,consider_allies:bool) {
         for i in 1..=7 {
             let xi = x+i*dx;
             let yi = y+i*dy;
@@ -229,7 +218,7 @@ impl Board {
             if !self.tile_occupied(xi,yi) {
                 moves.push((xi,yi));
             }
-            else if self.tile_occupied_by_enemy(xi,yi,color) {
+            else if self.tile_occupied_by_enemy(xi,yi,color) || (self.tile_occupied_by_ally(xi,yi,color) && consider_allies) {
                 moves.push((xi,yi));
                 break;
             }

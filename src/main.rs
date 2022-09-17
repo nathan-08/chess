@@ -89,7 +89,7 @@ impl eframe::App for MyEguiApp {
                             if self.board.selected_tile == (j,i)
                                 && self.board.turn_piece_selected() {
                                 draw_tile_outline(xpos,ypos,self.tile_width,ui);
-                                for (x,y) in self.board.get_moves(j,i) {
+                                for (x,y) in self.board.get_moves(j,i,false) {
                                     draw_tile_outline(x as f32*self.tile_width,
                                                       y as f32*self.tile_width,
                                                       self.tile_width,ui);
