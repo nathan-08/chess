@@ -1,6 +1,11 @@
 use eframe::egui;
+use chess::ai;
+use std::collections::HashMap;
+use egui_extras::image::RetainedImage;
+use std::path::Path;
 mod chess;
 use chess::board::Board;
+use chess::pieces::{Color,Kind,ChessPiece};
 
 fn main() {
     let mut native_options = eframe::NativeOptions::default();
@@ -13,6 +18,7 @@ fn main() {
 struct MyEguiApp {
     tile_width: f32,
     board: Board,
+    image_map: HashMap<(Kind, Color), RetainedImage>,
 }
 
 impl Default for MyEguiApp {
@@ -22,6 +28,7 @@ impl Default for MyEguiApp {
         Self {
             tile_width: width/num_tiles,
             board: Board::default(),
+            image_map: make_image_map(),
         }
     }
 }
@@ -29,6 +36,9 @@ impl Default for MyEguiApp {
 impl MyEguiApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Self::default()
+    }
+    pub fn get_image(&self, color: Color, kind: Kind) -> &RetainedImage {
+        self.image_map.get(&(kind, color)).unwrap()
     }
 }
 
@@ -41,9 +51,13 @@ impl eframe::App for MyEguiApp {
                     Some(egui::Pos2{x, y}) => {
                         let xpos = (x / self.tile_width).floor() as i32;
                         let ypos = (y / self.tile_width).floor() as i32;
-                        if self.board.try_move(xpos,ypos) {
+                        if self.board.get_moves(self.board.selected_tile.0,self.board.selected_tile.1,false).contains(&(xpos,ypos)) && self.board.try_move(xpos,ypos) {
                             _frame.set_window_title(self.board.turn_str());
                             self.board.selected_tile = (-1,-1);
+                            // now let ai have a turn
+                            //ai::make_move(&mut self.board);
+                            //_frame.set_window_title(self.board.turn_str());
+                            //self.board.selected_tile = (-1,-1);
                         }
                         else {
                             self.board.selected_tile = (xpos,ypos);
@@ -76,8 +90,8 @@ impl eframe::App for MyEguiApp {
                     let xpos = self.tile_width * j as f32 +0.0;
                     let ypos = self.tile_width * i as f32 +0.0;
                     match self.board.get_piece(j,i) {
-                        Some(_) => {
-                            let image = self.board.get_image(j,i);
+                        Some(ChessPiece{color,kind}) => {
+                            let image = self.get_image(*color,*kind);
                             ui.put(
                                 egui::Rect{min: egui::Pos2{x: xpos, y: ypos},
                                            max: egui::Pos2{x: xpos + self.tile_width,
@@ -118,3 +132,41 @@ fn draw_tile_outline(xpos:f32,ypos:f32,tile_width:f32,ui: &mut egui::Ui) {
     );
 }
 
+fn make_image_map() -> HashMap<(Kind, Color), RetainedImage> {
+    let white_pawn = get_image(Path::new("./src/images/pawn_white.png")).unwrap();
+    let black_pawn = get_image(Path::new("./src/images/pawn_black.png")).unwrap();
+    let white_rook = get_image(Path::new("./src/images/rook_white.png")).unwrap();
+    let black_rook = get_image(Path::new("./src/images/rook_black.png")).unwrap();
+    let white_knight = get_image(Path::new("./src/images/knight_white.png")).unwrap();
+    let black_knight = get_image(Path::new("./src/images/knight_black.png")).unwrap();
+    let white_bishop = get_image(Path::new("./src/images/bishop_white.png")).unwrap();
+    let black_bishop = get_image(Path::new("./src/images/bishop_black.png")).unwrap();
+    let white_queen = get_image(Path::new("./src/images/queen_white.png")).unwrap();
+    let black_queen = get_image(Path::new("./src/images/queen_black.png")).unwrap();
+    let white_king = get_image(Path::new("./src/images/king_white.png")).unwrap();
+    let black_king = get_image(Path::new("./src/images/king_black.png")).unwrap();
+    HashMap::from([
+      ((Kind::PAWN, Color::WHITE),RetainedImage::from_color_image("w_pawn", white_pawn)),
+      ((Kind::PAWN, Color::BLACK),RetainedImage::from_color_image("b_pawn", black_pawn)),
+      ((Kind::ROOK, Color::WHITE),RetainedImage::from_color_image("w_rook", white_rook)),
+      ((Kind::ROOK, Color::BLACK),RetainedImage::from_color_image("b_rook", black_rook)),
+      ((Kind::KNIGHT, Color::WHITE),RetainedImage::from_color_image("w_knight", white_knight)),
+      ((Kind::KNIGHT, Color::BLACK),RetainedImage::from_color_image("b_knight", black_knight)),
+      ((Kind::BISHOP, Color::WHITE),RetainedImage::from_color_image("w_bishop", white_bishop)),
+      ((Kind::BISHOP, Color::BLACK),RetainedImage::from_color_image("b_bishop", black_bishop)),
+      ((Kind::QUEEN, Color::WHITE),RetainedImage::from_color_image("w_queen", white_queen)),
+      ((Kind::QUEEN, Color::BLACK),RetainedImage::from_color_image("b_queen", black_queen)),
+      ((Kind::KING, Color::WHITE),RetainedImage::from_color_image("w_king", white_king)),
+      ((Kind::KING, Color::BLACK),RetainedImage::from_color_image("b_king", black_king)),
+    ])
+}
+fn get_image(path: &std::path::Path) -> Result<egui::ColorImage, image::ImageError> {
+    let image = image::io::Reader::open(path)?.decode()?;
+    let size = [image.width() as _, image.height() as _];
+    let image_buffer = image.to_rgba8();
+    let pixels = image_buffer.as_flat_samples();
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        pixels.as_slice(),
+    ))
+}
