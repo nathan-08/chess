@@ -1,10 +1,11 @@
 use eframe::egui;
 use chess::ai;
+use chess::ai::Ply;
 use std::collections::HashMap;
 use egui_extras::image::RetainedImage;
 use std::path::Path;
 mod chess;
-use chess::board::Board;
+use chess::board::{Board,enemy_color};
 use chess::pieces::{Color,Kind,ChessPiece};
 
 fn main() {
@@ -51,15 +52,30 @@ impl eframe::App for MyEguiApp {
                     Some(egui::Pos2{x, y}) => {
                         let xpos = (x / self.tile_width).floor() as i32;
                         let ypos = (y / self.tile_width).floor() as i32;
-                        if self.board.get_moves(self.board.selected_tile.0,self.board.selected_tile.1,false).contains(&(xpos,ypos)) && self.board.try_move(xpos,ypos) {
+                        if let Some(_) = self.board.winner { return; }
+                        let available_moves = self.board.get_moves_2(self.board.player_turn);
+                        if available_moves.is_empty() {
+                            println!("no available moves");
                             _frame.set_window_title(self.board.turn_str());
-                            self.board.selected_tile = (-1,-1);
-                            // now let ai have a turn
-                            //ai::make_move(&mut self.board);
-                            //_frame.set_window_title(self.board.turn_str());
-                            //self.board.selected_tile = (-1,-1);
+                            return;
                         }
-                        else {
+                        let mut made_move = false;
+                        for ply@Ply{fromx,fromy,tox,toy} in self.board.get_moves_2(self.board.player_turn) {
+                            if self.board.selected_tile.0 == fromx
+                                && self.board.selected_tile.1 == fromy
+                                && xpos == tox
+                                && ypos == toy {
+                                    self.board.perform_move_2(ply); // which function should process this?
+                                    _frame.set_window_title(self.board.turn_str());
+                                    self.board.selected_tile = (-1,-1);
+                                    made_move = true;
+                                    // now let ai have a turn
+                                    ai::make_move(&mut self.board);
+                                    _frame.set_window_title(self.board.turn_str());
+                                    self.board.selected_tile = (-1,-1);
+                            }
+                        }
+                        if !made_move {
                             self.board.selected_tile = (xpos,ypos);
                         }
                     },
@@ -103,11 +119,11 @@ impl eframe::App for MyEguiApp {
                             if self.board.selected_tile == (j,i)
                                 && self.board.turn_piece_selected() {
                                 draw_tile_outline(xpos,ypos,self.tile_width,ui);
-                                for (x,y) in self.board.get_moves(j,i,false) {
-                                    draw_tile_outline(x as f32*self.tile_width,
-                                                      y as f32*self.tile_width,
-                                                      self.tile_width,ui);
-                                }
+                                //for (x,y) in self.board.get_moves(j,i,false) {
+                                    //draw_tile_outline(x as f32*self.tile_width,
+                                                      //y as f32*self.tile_width,
+                                                      //self.tile_width,ui);
+                                //}
                             }
                         },
                         None => (),

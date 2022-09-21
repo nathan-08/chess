@@ -12,7 +12,7 @@ pub enum Kind {
     QUEEN,
     KING
 }
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug)]
 pub struct ChessPiece {
     pub kind: Kind,
     pub color: Color,

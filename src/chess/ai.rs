@@ -1,52 +1,47 @@
 use super::pieces::{Color,Kind};
 use super::board::Board;
-#[derive(Clone,Copy)]
-struct Ply {
-    fromx: i32,
-    fromy: i32,
-    tox: i32,
-    toy: i32,
+#[derive(Clone,Copy,Debug)]
+pub struct Ply {
+    pub fromx: i32,
+    pub fromy: i32,
+    pub tox: i32,
+    pub toy: i32,
 }
 pub fn make_move(board: &mut Board) {
-    let player_color = board.player_turn;
-    let moves = get_moves(board);
+    let player_color = &board.player_turn;
+    let moves = board.get_moves_2(*player_color);
     let mut best_move = moves[0];
     let mut best_move_value = 0.0;
     moves.iter().for_each(|ply| {
-        if let Some(new_state) = board.perform_move(ply.fromx,ply.fromy,ply.tox,ply.toy) {
-            let value = h_minimax(&new_state, 0, &player_color);
-            if value > best_move_value {
-                best_move_value = value;
-                best_move = *ply;
-            }
-        } else {
-            panic!("ai tried illegal move");
+        let new_state = board.perform_move_copy(*ply);
+        let value = h_minimax(&new_state, 0, player_color);
+        if value > best_move_value {
+            best_move_value = value;
+            best_move = *ply;
         }
     });
     board.selected_tile = (best_move.fromx, best_move.fromy);
-    if !board.try_move(best_move.tox, best_move.toy) {
-        panic!("ai tried illegal move");
-    }
+    println!("best move: {:?}", best_move);
+    board.perform_move_2(best_move);
 }
 
 fn h_minimax(state: &Board, depth:u32, ai_color: &Color) -> f32 {
     println!("h_minimax depth: {depth}");
-    if let Some(color) = state.winner {
-        println!("WINNER {:?}", color);
-    }
     if depth == 3 || state.winner != None {
-        println!("returning");
         evaluate_state(state, ai_color)
     }
     else {
+        let moves = state.get_moves_2(state.player_turn);
+        if moves.is_empty() {
+            return evaluate_state(state, ai_color);
+        }
         let mut max_value = 0.0;
         let mut min_value = 1.0;
-        for Ply{fromx,fromy,tox,toy} in get_moves(state) {
-            if let Some(new_state) = state.perform_move(fromx,fromy,tox,toy) {
-                let value = h_minimax(&new_state, depth+1, ai_color);
-                if value > max_value { max_value = value; }
-                if value < min_value { min_value = value; }
-            } else { panic!("ai tried illegal move"); }
+        for ply@Ply{fromx,fromy,tox,toy} in moves {
+            let new_state = state.perform_move_copy(ply);
+            let value = h_minimax(&new_state, depth+1, ai_color);
+            if value > max_value { max_value = value; }
+            if value < min_value { min_value = value; }
         }
         if state.player_turn == *ai_color {
             max_value
@@ -55,18 +50,6 @@ fn h_minimax(state: &Board, depth:u32, ai_color: &Color) -> f32 {
             min_value
         }
     }
-}
-
-fn get_moves(state: &Board) -> Vec<Ply> {
-    let mut moves = Vec::<Ply>::new();
-    let player_color = state.player_turn;
-    let player_pieces = state.get_player_pieces(player_color);
-    for (_,(fromx,fromy)) in player_pieces {
-        for (tox,toy) in state.get_moves(fromx,fromy,false) {
-            moves.push(Ply{fromx,fromy,tox,toy});
-        }
-    }
-    moves
 }
 
 fn evaluate_state(board: &Board, color: &Color) -> f32 {
